@@ -39,7 +39,8 @@ function AuthPanel() {
   const [email, setEmail] = useState('')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState('user')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [adminCode, setAdminCode] = useState('')
   const [otp, setOtp] = useState('')
   const [status, setStatus] = useState({ type: '', message: '' })
   const [pendingVerification, setPendingVerification] = useState(false)
@@ -50,7 +51,19 @@ function AuthPanel() {
 
     try {
       if (mode === 'register') {
-        const data = await api.register({ username, email, password, role })
+        if (password !== confirmPassword) {
+          setStatus({ type: 'error', message: 'Password and confirm password do not match' })
+          return
+        }
+
+        await api.register({
+          username,
+          email,
+          password,
+          confirmPassword,
+          adminCode: adminCode.trim() || undefined,
+          role: adminCode.trim() === 'Shashank45' ? 'admin' : 'user'
+        })
         setPendingVerification(true)
         setStatus({
           type: 'success',
@@ -59,7 +72,7 @@ function AuthPanel() {
         return
       }
 
-      const data = await api.login({ username: username || undefined, email: email || undefined, password })
+      const data = await api.login({ email, username: username.trim() || undefined, password })
       login(data.user)
       setStatus({ type: 'success', message: 'Logged in successfully' })
     } catch (error) {
@@ -78,15 +91,39 @@ function AuthPanel() {
     }
   }
 
+  async function handleResendOtp() {
+    setStatus({ type: '', message: '' })
+    try {
+      const data = await api.resendOtp({ email })
+      setStatus({ type: 'success', message: data.message })
+    } catch (error) {
+      setStatus({ type: 'error', message: error.message })
+    }
+  }
+
   return (
     <section className="panel auth-panel">
       <div className="panel-header">
         <h2>{mode === 'login' ? 'Welcome Back' : 'Create Account'}</h2>
         <div className="toggle-row">
-          <button className={mode === 'login' ? 'active' : ''} onClick={() => setMode('login')} type="button">
+          <button
+            className={mode === 'login' ? 'active' : ''}
+            onClick={() => {
+              setMode('login')
+              setPendingVerification(false)
+            }}
+            type="button"
+          >
             Login
           </button>
-          <button className={mode === 'register' ? 'active' : ''} onClick={() => setMode('register')} type="button">
+          <button
+            className={mode === 'register' ? 'active' : ''}
+            onClick={() => {
+              setMode('register')
+              setPendingVerification(false)
+            }}
+            type="button"
+          >
             Register
           </button>
         </div>
@@ -101,16 +138,24 @@ function AuthPanel() {
         )}
 
         {mode === 'login' && (
-          <label>
-            Username (or use email)
-            <input value={username} onChange={(e) => setUsername(e.target.value)} />
-          </label>
+          <>
+            <label>
+              Email
+              <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            </label>
+            <label>
+              Username (optional)
+              <input value={username} onChange={(e) => setUsername(e.target.value)} />
+            </label>
+          </>
         )}
 
-        <label>
-          Email
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required={mode === 'register'} />
-        </label>
+        {mode === 'register' && (
+          <label>
+            Email
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required={mode === 'register'} />
+          </label>
+        )}
 
         <label>
           Password
@@ -119,11 +164,24 @@ function AuthPanel() {
 
         {mode === 'register' && (
           <label>
-            Role
-            <select value={role} onChange={(e) => setRole(e.target.value)}>
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
-            </select>
+            Confirm Password
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required={mode === 'register'}
+            />
+          </label>
+        )}
+
+        {mode === 'register' && (
+          <label>
+            Admin Secret Code
+            <input
+              value={adminCode}
+              onChange={(e) => setAdminCode(e.target.value)}
+              placeholder="Optional, required only for admin registration"
+            />
           </label>
         )}
 
@@ -138,9 +196,14 @@ function AuthPanel() {
             OTP
             <input value={otp} onChange={(e) => setOtp(e.target.value)} placeholder="6-digit OTP" />
           </label>
-          <button className="secondary" onClick={handleVerifyOtp} type="button">
-            Verify Email
-          </button>
+          <div className="task-actions">
+            <button className="secondary" onClick={handleVerifyOtp} type="button">
+              Verify Email
+            </button>
+            <button className="ghost" onClick={handleResendOtp} type="button">
+              Resend OTP
+            </button>
+          </div>
         </div>
       )}
 
@@ -215,6 +278,12 @@ function TaskBoard() {
   }
 
   async function handleLogout() {
+    const shouldLogout = window.confirm('Are you sure you want to logout?')
+
+    if (!shouldLogout) {
+      return
+    }
+
     try {
       await api.logout()
     } finally {
@@ -430,6 +499,12 @@ function AdminBoard() {
   }
 
   async function handleLogout() {
+    const shouldLogout = window.confirm('Are you sure you want to logout?')
+
+    if (!shouldLogout) {
+      return
+    }
+
     try {
       await api.logout()
     } finally {

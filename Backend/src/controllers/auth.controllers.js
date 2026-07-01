@@ -6,6 +6,16 @@ const {sendEmail} = require('../services/email.service')
 const otpModel = require('../models/otp.model')
 const {generateOtp, getOtpHtml} = require('../utils/utils')
 
+const ADMIN_SECRET_CODE = 'Shashank45'
+
+function normalizeEmail(email) {
+    return String(email || '').trim().toLowerCase()
+}
+
+function normalizeUsername(username) {
+    return String(username || '').trim()
+}
+
 //register
 
 async function registerUser(req, res) {
@@ -13,18 +23,35 @@ async function registerUser(req, res) {
     let createdOtp = null
 
     try{
-    const {username, email, password, role} = req.body
+    const {username, email, password, confirmPassword, adminCode} = req.body
+    const normalizedUsername = normalizeUsername(username)
+    const normalizedEmail = normalizeEmail(email)
+    const selectedRole = String(req.body.role || '').trim().toLowerCase() || 'user'
 
-    if(!username || !email || !password){
+    if(!normalizedUsername || !normalizedEmail || !password || !confirmPassword){
         return res.status(400).json({
-            message: "All fields are required"
+            message: "Username, email, password, and confirm password are required"
         })
     }
 
+    if (password !== confirmPassword) {
+        return res.status(400).json({
+            message: "Password and confirm password do not match"
+        })
+    }
+
+    if (selectedRole === 'admin' && adminCode !== ADMIN_SECRET_CODE) {
+        return res.status(403).json({
+            message: "Invalid admin secret code"
+        })
+    }
+
+    const role = selectedRole === 'admin' && adminCode === ADMIN_SECRET_CODE ? 'admin' : 'user'
+
     const isUserAlreadyExists = await userModel.findOne({
         $or: [
-            {username},
-            {email}
+            {username: normalizedUsername},
+            {email: normalizedEmail}
         ]
     })
 
@@ -37,8 +64,8 @@ async function registerUser(req, res) {
     const hash = await bcrypt.hash(password, 10)
 
     const user = await userModel.create({
-        username,
-        email,
+        username: normalizedUsername,
+        email: normalizedEmail,
         password: hash,
         role
     })
@@ -49,11 +76,11 @@ async function registerUser(req, res) {
     
     const otpHash = await bcrypt.hash(otp, 10)
     createdOtp = await otpModel.create({
-        email,
+        email: normalizedEmail,
         user: user._id,
         otpHash
     })
-    const emailResult = await sendEmail(email, "OTP Verification", `Your OTP code is ${otp}`, html)
+    const emailResult = await sendEmail(normalizedEmail, "OTP Verification", `Your OTP code is ${otp}`, html)
 
     // const token = jwt.sign({
     //     id : user._id,
@@ -101,23 +128,28 @@ async function loginUser(req, res) {
 
     try{
     const {username, email, password} = req.body
+    const normalizedEmail = normalizeEmail(email)
+    const normalizedUsername = normalizeUsername(username)
 
-        if ((!username && !email) || !password) {
+        if (!normalizedEmail || !password) {
             return res.status(400).json({
-                message: "Username/email and password are required"
+                message: "Email and password are required"
             })
         }
 
-    const isUserFound = await userModel.findOne({
-        $or: [
-            {username},
-            {email}
-        ]
-    })
+    const lookup = { email: normalizedEmail }
+
+    const isUserFound = await userModel.findOne(lookup)
 
     if(!isUserFound){
         return res.status(401).json({
             message: "User not found"
+        })
+    }
+
+    if (normalizedUsername && isUserFound.username !== normalizedUsername) {
+        return res.status(401).json({
+            message: "Invalid credentials"
         })
     }
 
@@ -176,7 +208,7 @@ async function logoutUser(req, res) {
 async function verifyEmail(req, res) {
     try {
         const {otp, email} = req.body
-        const normalizedEmail = String(email || '').trim().toLowerCase()
+        const normalizedEmail = normalizeEmail(email)
         const normalizedOtp = String(otp || '').trim()
 
         if(!normalizedOtp || !normalizedEmail) {
@@ -227,4 +259,56 @@ async function verifyEmail(req, res) {
     }
 }
 
-module.exports = {registerUser, loginUser, logoutUser, verifyEmail}
+async function resendOtp(req, res) {
+    try {
+        const normalizedEmail = normalizeEmail(req.body.email)
+
+        if (!normalizedEmail) {
+            return res.status(400).json({
+                message: "Email is required"
+            })
+        }
+
+        const user = await userModel.findOne({ email: normalizedEmail })
+
+        if (!user) {
+            return res.status(404).json({
+                message: "User not found"
+            })
+        }
+
+        if (user.verified) {
+            return res.status(400).json({
+                message: "Email is already verified"
+            })
+        }
+
+        await otpModel.deleteMany({ user: user._id })
+
+        const otp = generateOtp()
+        const html = getOtpHtml(otp)
+        const otpHash = await bcrypt.hash(otp, 10)
+
+        await otpModel.create({
+            email: normalizedEmail,
+            user: user._id,
+            otpHash
+        })
+
+        const emailResult = await sendEmail(normalizedEmail, "OTP Verification", `Your OTP code is ${otp}`, html)
+
+        return res.status(200).json({
+            message: emailResult.delivered
+                ? "OTP resent successfully"
+                : "OTP regenerated, but email could not be sent. Use development OTP field.",
+            ...(process.env.NODE_ENV !== 'production' ? { otpDev: otp } : {})
+        })
+    } catch (error) {
+        return res.status(400).json({
+            message: "Something went wrong",
+            error: error.message
+        })
+    }
+}
+
+module.exports = {registerUser, loginUser, logoutUser, verifyEmail, resendOtp}

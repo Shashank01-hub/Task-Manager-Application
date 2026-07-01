@@ -7,6 +7,7 @@ router.post('/register', authController.registerUser)
 router.post('/login', authController.loginUser)
 router.post('/logout', authController.logoutUser)
 router.post('/verify-email', authController.verifyEmail)
+router.post('/resend-otp', authController.resendOtp)
 
 module.exports = router
 

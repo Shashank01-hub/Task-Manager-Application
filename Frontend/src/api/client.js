@@ -35,6 +35,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload)
     }),
+  resendOtp: (payload) =>
+    request('/api/auth/resend-otp', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    }),
   logout: () =>
     request('/api/auth/logout', {
       method: 'POST'
