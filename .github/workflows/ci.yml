@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  backend-check:
+    name: Backend syntax check
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: Backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check backend syntax
+        run: node --check server.js
+
+      - name: Check backend source files
+        run: |
+          node --check src/app.js
+          node --check src/controllers/auth.controllers.js
+          node --check src/controllers/admin.controllers.js
+          node --check src/controllers/task.controllers.js
+          node --check src/routes/auth.routes.js
+          node --check src/routes/admin.routes.js
+          node --check src/routes/task.routes.js
+          node --check src/services/email.service.js
+          node --check src/utils/utils.js
+
+  frontend-build:
+    name: Frontend build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: Frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
