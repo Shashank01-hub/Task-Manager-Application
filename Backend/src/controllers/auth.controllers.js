@@ -172,9 +172,13 @@ async function loginUser(req, res) {
         role: isUserFound.role
     }, config.JWT_SECRET)
 
+    const isProduction = process.env.NODE_ENV === 'production'
+
     res.cookie("token", token, {
         httpOnly: true,
-        sameSite: 'lax'
+        sameSite: isProduction ? 'none' : 'lax',
+        secure: isProduction,
+        path: '/'
     })
 
     res.status(200).json({
@@ -196,9 +200,13 @@ async function loginUser(req, res) {
 }
 
 async function logoutUser(req, res) {
+    const isProduction = process.env.NODE_ENV === 'production'
+
     res.clearCookie("token", {
         httpOnly: true,
-        sameSite: 'lax'
+        sameSite: isProduction ? 'none' : 'lax',
+        secure: isProduction,
+        path: '/'
     });
     res.status(200).json({
         message: "User logged out successfully"
