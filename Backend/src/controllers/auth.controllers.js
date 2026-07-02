@@ -80,7 +80,15 @@ async function registerUser(req, res) {
         user: user._id,
         otpHash
     })
-    const emailResult = await sendEmail(normalizedEmail, "OTP Verification", `Your OTP code is ${otp}`, html)
+    void sendEmail(normalizedEmail, "OTP Verification", `Your OTP code is ${otp}`, html)
+        .then((emailResult) => {
+            if (!emailResult.delivered) {
+                console.log(`OTP email could not be delivered for ${normalizedEmail}:`, emailResult.error || 'not delivered')
+            }
+        })
+        .catch((error) => {
+            console.log(`OTP email attempt failed for ${normalizedEmail}:`, error.message)
+        })
 
     // const token = jwt.sign({
     //     id : user._id,
@@ -90,9 +98,7 @@ async function registerUser(req, res) {
     // res.cookie("token", token)
 
     const responsePayload = {
-        message: emailResult.delivered
-            ? "User registered successfully"
-            : "User registered, but OTP email could not be sent. Use development OTP field.",
+        message: "User registered successfully. If the OTP email does not arrive, check SMTP settings and spam.",
         user: {
             id: user._id,
             username: user.username,

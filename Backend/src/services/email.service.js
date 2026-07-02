@@ -7,6 +7,10 @@ function createTransporter() {
             host: config.SMTP_HOST,
             port: config.SMTP_PORT,
             secure: config.SMTP_SECURE,
+            family: 4,
+            tls: {
+                servername: config.SMTP_HOST
+            },
             auth: {
                 user: config.SMTP_USER,
                 pass: config.SMTP_PASS
