@@ -60,6 +60,10 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(payload)
     }),
+  markTaskComplete: (id) =>
+    request(`/api/task/complete/${id}`, {
+      method: 'PUT'
+    }),
   deleteTask: (id) =>
     request(`/api/task/delete/${id}`, {
       method: 'DELETE'

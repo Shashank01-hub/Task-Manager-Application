@@ -15,6 +15,11 @@ function prettyDate(date) {
   return new Date(date).toLocaleDateString()
 }
 
+function toDateInputValue(date) {
+  if (!date) return ''
+  return new Date(date).toISOString().slice(0, 10)
+}
+
 function Hero() {
   return (
     <section className="hero-card">
@@ -217,6 +222,7 @@ function TaskBoard() {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState(defaultTask)
+  const [editingTaskId, setEditingTaskId] = useState(null)
   const [filter, setFilter] = useState({ search: '', status: '', priority: '' })
   const [message, setMessage] = useState('')
 
@@ -247,13 +253,38 @@ function TaskBoard() {
   async function handleCreateTask(event) {
     event.preventDefault()
     try {
-      await api.createTask(form)
+      if (editingTaskId) {
+        await api.updateTask(editingTaskId, form)
+        setMessage('Task updated successfully')
+      } else {
+        await api.createTask(form)
+        setMessage('Task created successfully')
+      }
+
       setForm(defaultTask)
-      setMessage('Task created successfully')
+      setEditingTaskId(null)
       fetchTasks()
     } catch (error) {
       setMessage(error.message)
     }
+  }
+
+  function handleEditTask(task) {
+    setEditingTaskId(task._id)
+    setForm({
+      title: task.title || '',
+      description: task.description || '',
+      status: task.status || 'pending',
+      priority: task.priority || 'medium',
+      dueDate: toDateInputValue(task.dueDate)
+    })
+    setMessage('Editing task')
+  }
+
+  function handleCancelEdit() {
+    setEditingTaskId(null)
+    setForm(defaultTask)
+    setMessage('')
   }
 
   async function handleDelete(id) {
@@ -268,9 +299,7 @@ function TaskBoard() {
 
   async function handleToggleStatus(task) {
     try {
-      await api.updateTask(task._id, {
-        status: task.status === 'completed' ? 'pending' : 'completed'
-      })
+      await api.markTaskComplete(task._id)
       fetchTasks(filter)
     } catch (error) {
       setMessage(error.message)
@@ -329,7 +358,7 @@ function TaskBoard() {
 
       <div className="grid-two">
         <section className="panel">
-          <h3>Create Task</h3>
+          <h3>{editingTaskId ? 'Edit Task' : 'Create Task'}</h3>
           <form className="form-grid" onSubmit={handleCreateTask}>
             <label>
               Title
@@ -376,8 +405,13 @@ function TaskBoard() {
               />
             </label>
             <button className="primary" type="submit">
-              Add Task
+              {editingTaskId ? 'Save Changes' : 'Add Task'}
             </button>
+            {editingTaskId && (
+              <button className="ghost" type="button" onClick={handleCancelEdit}>
+                Cancel
+              </button>
+            )}
           </form>
         </section>
 
@@ -437,9 +471,18 @@ function TaskBoard() {
                   <small>{prettyDate(task.dueDate)}</small>
                 </div>
                 <div className="task-actions">
-                  <button className="secondary" type="button" onClick={() => handleToggleStatus(task)}>
-                    Toggle Status
+                  <button className="secondary" type="button" onClick={() => handleEditTask(task)}>
+                    Edit
                   </button>
+                  {task.status !== 'completed' ? (
+                    <button className="secondary" type="button" onClick={() => handleToggleStatus(task)}>
+                      Mark Complete
+                    </button>
+                  ) : (
+                    <button className="secondary" type="button" disabled>
+                      Completed
+                    </button>
+                  )}
                   <button className="danger" type="button" onClick={() => handleDelete(task._id)}>
                     Delete
                   </button>
@@ -554,6 +597,9 @@ function AdminBoard() {
                 <div>
                   <h4>{u.username}</h4>
                   <p>{u.email}</p>
+                  <small>
+                    Completed tasks: {u.completedTasks || 0} / {u.totalTasks || 0}
+                  </small>
                 </div>
                 <div className="task-actions">
                   <button className="secondary" onClick={() => inspectUserTasks(u._id)} type="button">
@@ -581,6 +627,7 @@ function AdminBoard() {
                 <div className="task-meta">
                   <span className={`chip ${task.status}`}>{task.status}</span>
                   <span className={`chip ${task.priority}`}>{task.priority}</span>
+                  {task.completedAt && <small>Completed on {prettyDate(task.completedAt)}</small>}
                 </div>
               </article>
             ))}
