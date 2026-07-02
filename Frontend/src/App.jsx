@@ -78,7 +78,7 @@ function AuthPanel() {
       }
 
       const data = await api.login({ email, username: username.trim() || undefined, password })
-      login(data.user)
+      login(data.user, data.token)
       setStatus({ type: 'success', message: 'Logged in successfully' })
     } catch (error) {
       setStatus({ type: 'error', message: error.message })

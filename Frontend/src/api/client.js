@@ -1,10 +1,19 @@
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
+function getStoredToken() {
+  try {
+    return localStorage.getItem('task_orbit_token') || ''
+  } catch (_) {
+    return ''
+  }
+}
+
 async function request(path, options = {}) {
+  const token = getStoredToken()
   const response = await fetch(`${API_BASE}${path}`, {
-    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options.headers || {})
     },
     ...options

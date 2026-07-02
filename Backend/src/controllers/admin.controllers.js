@@ -4,10 +4,37 @@ const userModel = require("../models/user.model")
 //GET ALL USER 
 async function getAllUser(req, res){
     try{
-        const users = await userModel.find({role: "user"}).select("-password")
+        const users = await userModel.find({role: "user"}).select("-password").lean()
+        const taskStats = await taskModel.aggregate([
+            {
+                $group: {
+                    _id: '$user',
+                    totalTasks: { $sum: 1 },
+                    completedTasks: {
+                        $sum: {
+                            $cond: [{ $eq: ['$status', 'completed'] }, 1, 0]
+                        }
+                    }
+                }
+            }
+        ])
+
+        const statsByUserId = taskStats.reduce((accumulator, item) => {
+            accumulator[String(item._id)] = {
+                totalTasks: item.totalTasks,
+                completedTasks: item.completedTasks
+            }
+            return accumulator
+        }, {})
+
+        const usersWithStats = users.map((user) => ({
+            ...user,
+            totalTasks: statsByUserId[String(user._id)]?.totalTasks || 0,
+            completedTasks: statsByUserId[String(user._id)]?.completedTasks || 0
+        }))
         res.status(200).json({
             message: "Users fetched successfully",
-            users: users
+            users: usersWithStats
         })
     } catch(error){
         res.status(400).json({

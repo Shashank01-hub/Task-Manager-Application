@@ -6,8 +6,11 @@ const userModel = require('../models/user.model')
 
 async function createTask(req, res){
     try{
+        const status = req.body.status === 'completed' ? 'completed' : 'pending'
         const task = await taskModel.create({
             ...req.body,
+            status,
+            completedAt: status === 'completed' ? new Date() : null,
             user: req.user.id
         })
         res.status(201).json({
@@ -48,11 +51,24 @@ async function getAllTask(req, res){
 
 async function updateTask(req, res){
     try{
+        const nextStatus = req.body.status
+        const updateData = {
+            ...req.body
+        }
+
+        if (nextStatus === 'completed') {
+            updateData.completedAt = new Date()
+        }
+
+        if (nextStatus === 'pending') {
+            updateData.completedAt = null
+        }
+
         const task = await taskModel.findOneAndUpdate({
             _id: req.params.id,
             user: req.user.id
         },
-            req.body,
+            updateData,
             {
                 new: true,
             }
@@ -74,6 +90,43 @@ async function updateTask(req, res){
             error: error.message
         })
     }   
+}
+
+
+
+//MARK TASK AS COMPLETED
+
+async function completeTask(req, res){
+    try{
+        const task = await taskModel.findOneAndUpdate({
+            _id: req.params.id,
+            user: req.user.id
+        },
+            {
+                status: 'completed',
+                completedAt: new Date()
+            },
+            {
+                new: true,
+            }
+        )
+
+        if(!task) {
+            return res.status(404).json({
+                message: "Task not found"
+            })
+        }
+
+        res.status(200).json({
+            message: "Task marked as completed",
+            task
+        })
+    } catch (error){
+        res.status(400).json({
+            message: "Something went wrong",
+            error: error.message
+        })
+    }
 }
 
 
@@ -147,4 +200,4 @@ async function searchAndFilterTask(req, res){
     }
 }
 
-module.exports = {createTask, getAllTask, updateTask, deleteTask, searchAndFilterTask}
+module.exports = {createTask, getAllTask, updateTask, deleteTask, searchAndFilterTask, completeTask}
