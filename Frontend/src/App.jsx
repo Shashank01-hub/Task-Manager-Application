@@ -15,6 +15,18 @@ function prettyDate(date) {
   return new Date(date).toLocaleDateString()
 }
 
+function buildStatusMessage(data, fallbackMessage) {
+  if (!data) {
+    return fallbackMessage
+  }
+
+  if (data.otpDev) {
+    return `${data.message} Development OTP: ${data.otpDev}`
+  }
+
+  return data.message || fallbackMessage
+}
+
 function toDateInputValue(date) {
   if (!date) return ''
   return new Date(date).toISOString().slice(0, 10)
@@ -61,7 +73,7 @@ function AuthPanel() {
           return
         }
 
-        await api.register({
+        const data = await api.register({
           username,
           email,
           password,
@@ -72,13 +84,16 @@ function AuthPanel() {
         setPendingVerification(true)
         setStatus({
           type: 'success',
-          message: 'Registration successful. Check your email for the OTP and verify your account.'
+          message: buildStatusMessage(
+            data,
+            'Registration successful. Check your email for the OTP and verify your account.'
+          )
         })
         return
       }
 
       const data = await api.login({ email, username: username.trim() || undefined, password })
-      login(data.user, data.token)
+      login(data.user)
       setStatus({ type: 'success', message: 'Logged in successfully' })
     } catch (error) {
       setStatus({ type: 'error', message: error.message })
@@ -100,7 +115,7 @@ function AuthPanel() {
     setStatus({ type: '', message: '' })
     try {
       const data = await api.resendOtp({ email })
-      setStatus({ type: 'success', message: data.message })
+      setStatus({ type: 'success', message: buildStatusMessage(data, 'OTP resent successfully') })
     } catch (error) {
       setStatus({ type: 'error', message: error.message })
     }
