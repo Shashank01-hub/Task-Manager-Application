@@ -6,12 +6,16 @@ function createSmtpTransporter() {
         return nodemailer.createTransport({
             host: config.SMTP_HOST,
             port: config.SMTP_PORT,
+            family: 4,
             secure: config.SMTP_SECURE,
             auth: {
                 user: config.SMTP_USER,
                 pass: config.SMTP_PASS
             },
-            requireTLS: !config.SMTP_SECURE
+            requireTLS: !config.SMTP_SECURE,
+            tls: {
+                servername: config.SMTP_HOST
+            }
         })
     }
 
