@@ -25,11 +25,6 @@ function createSmtpTransporter() {
 const smtpTransporter = createSmtpTransporter()
 
 async function verifySmtpTransporter() {
-    if (config.EMAIL_PROVIDER === 'resend') {
-        console.log('Email provider is configured for HTTP delivery via Resend.')
-        return true
-    }
-
     if (!config.SMTP_HOST) {
         console.log('SMTP is not configured; using buffered local transport only.')
         return false
@@ -46,44 +41,6 @@ async function verifySmtpTransporter() {
 }
 
 verifySmtpTransporter()
-
-async function sendViaResend(to, subject, text, html) {
-    if (!config.RESEND_API_KEY) {
-        return { delivered: false, error: 'RESEND_API_KEY is not configured' }
-    }
-
-    const from = config.RESEND_FROM || config.SMTP_FROM || config.SMTP_USER || 'no-reply@task-orbit.local'
-
-    const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-            Authorization: `Bearer ${config.RESEND_API_KEY}`,
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            from,
-            to,
-            subject,
-            text,
-            html
-        })
-    })
-
-    const responseBody = await response.json().catch(() => null)
-
-    if (!response.ok) {
-        const errorMessage = responseBody?.message || responseBody?.error || `HTTP ${response.status}`
-        return { delivered: false, error: errorMessage }
-    }
-
-    return {
-        delivered: true,
-        messageId: responseBody?.id || null,
-        accepted: [to],
-        rejected: [],
-        provider: 'resend'
-    }
-}
 
 async function sendViaSmtp(to, subject, text, html) {
     const info = await smtpTransporter.sendMail({
@@ -118,10 +75,6 @@ async function sendViaSmtp(to, subject, text, html) {
 
 const sendEmail = async (to, subject, text, html) => {
     try {
-        if (config.EMAIL_PROVIDER === 'resend') {
-            return await sendViaResend(to, subject, text, html)
-        }
-
         return await sendViaSmtp(to, subject, text, html)
     } catch (error) {
         console.error('Error sending email:', error.message)
