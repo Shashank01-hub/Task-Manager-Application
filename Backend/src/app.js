@@ -14,14 +14,27 @@ const allowedOrigins = String(process.env.FRONTEND_URL || process.env.CORS_ORIGI
 	.map((origin) => origin.trim())
 	.filter(Boolean)
 
+function isAllowedOrigin(origin) {
+	if (!origin) {
+		return true
+	}
+
+	if (!allowedOrigins.length || allowedOrigins.includes(origin)) {
+		return true
+	}
+
+	try {
+		const url = new URL(origin)
+		return url.hostname.endsWith('.vercel.app')
+	} catch (_) {
+		return false
+	}
+}
+
 app.use(
 	cors({
 		origin(origin, callback) {
-			if (!origin) {
-				return callback(null, true)
-			}
-
-			if (!allowedOrigins.length || allowedOrigins.includes(origin)) {
+			if (isAllowedOrigin(origin)) {
 				return callback(null, true)
 			}
 

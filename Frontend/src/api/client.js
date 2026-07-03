@@ -1,6 +1,10 @@
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
 async function request(path, options = {}) {
+  if (import.meta.env.PROD && !API_BASE) {
+    throw new Error('Frontend is missing VITE_API_BASE. Set it to the deployed backend URL.')
+  }
+
   const response = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
     headers: {
