@@ -1,21 +1,7 @@
 const jwt = require('jsonwebtoken')
 
-function getAuthToken(req) {
-    const cookieToken = req.cookies?.token
-    if (cookieToken) {
-        return cookieToken
-    }
-
-    const authHeader = req.headers.authorization || ''
-    if (authHeader.startsWith('Bearer ')) {
-        return authHeader.slice(7).trim()
-    }
-
-    return null
-}
-
 async function authAdmin(req, res, next){
-    const token = getAuthToken(req)
+    const token = req.cookies.token
 
     if(!token){
         return res.status(401).json({
@@ -45,7 +31,7 @@ async function authAdmin(req, res, next){
 }
 
 async function authUser(req, res, next){
-    const token = getAuthToken(req)
+    const token = req.cookies.token
 
     if(!token){
         return res.status(401).json({
